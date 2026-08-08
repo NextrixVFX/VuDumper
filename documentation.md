@@ -1,6 +1,6 @@
 # Vector Unit (VuEngine) — Access Documentation
 
-Practical reference for reading **camera**, **entities**, **boats**, and related systems in Vector Unit’s C++ engine (**VuEngine**), recovered from **Hydro Thunder Remastered** (`HydroThunder.exe`, 32-bit).
+Practical reference for reading **camera**, **entities**, **boats**, and related systems in Vector Unit’s C++ engine (**VuEngine**), recovered from **Hydro Thunder Hurricane** (`HydroThunder.exe`, 32-bit).
 
 **Related**
 
