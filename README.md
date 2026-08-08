@@ -6,6 +6,7 @@ It recovers MSVC RTTI classes, `VuProperty` loaders, manager globals, structural
 
 > [!NOTE]
 > Primary validated target: **Hydro Thunder Hurricane** (`HydroThunder.exe`).
+<img width="1919" height="1079" alt="image" src="https://github.com/user-attachments/assets/e9148ab1-1d31-41cd-af9d-b3a13b3812a0" />
 
 **Docs**
 
