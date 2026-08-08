@@ -4,4 +4,7 @@
     <Platform Name="x86" />
   </Configurations>
   <Project Path="Dumper/Dumper.vcxproj" Id="879f75ce-e1b5-4634-8ae9-a51a27c830b8" />
+  <Project Path="External/External.vcxproj" Id="a7c3e291-4f18-4b6d-9e02-8d5c1f0a3b77">
+    <Platform Project="Win32" />
+  </Project>
 </Solution>
