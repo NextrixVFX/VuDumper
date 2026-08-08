@@ -1,7 +1,6 @@
 # VuDumper
 
 Hybrid **static + live** SDK dumper for [Vector Unit](https://www.vectorunit.com/) **VuEngine** titles.
-<img width="1919" height="1079" alt="image" src="https://github.com/user-attachments/assets/e9148ab1-1d31-41cd-af9d-b3a13b3812a0" />
 
 It recovers MSVC RTTI classes, `VuProperty` loaders, manager globals, structural layouts, and optional live process validation — then emits a C++ SDK tailored to VuEngine (`VuEntity`, `VuProperty`, manager singletons).
 
@@ -12,6 +11,8 @@ It recovers MSVC RTTI classes, `VuProperty` loaders, manager globals, structural
 
 - [Engine access guide](documentation.md) — camera, entities, boats, properties
 - Generated SDK — `HydroThunder_sdk/SDK/` after a dump
+
+<img width="1919" height="1079" alt="image" src="https://github.com/user-attachments/assets/e9148ab1-1d31-41cd-af9d-b3a13b3812a0" />
 
 ---
 
