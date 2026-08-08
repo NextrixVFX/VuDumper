@@ -5,7 +5,7 @@ Hybrid **static + live** SDK dumper for [Vector Unit](https://www.vectorunit.com
 It recovers MSVC RTTI classes, `VuProperty` loaders, manager globals, structural layouts, and optional live process validation — then emits a C++ SDK in the spirit of Unreal dumpers (Dumper-7 style), adapted for VuEngine rather than `UObject` / `FProperty`.
 
 > [!NOTE]
-> Primary validated target: **Hydro Thunder Hurricane** (`HydroThunder.exe`, Win32, preferred image base `0x400000`).
+> Primary validated target: **Hydro Thunder Hurricane** (`HydroThunder.exe`).
 
 **Docs**
 
