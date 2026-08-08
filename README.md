@@ -2,10 +2,10 @@
 
 Hybrid **static + live** SDK dumper for [Vector Unit](https://www.vectorunit.com/) **VuEngine** titles.
 
-It recovers MSVC RTTI classes, `VuProperty` loaders, manager globals, structural layouts, and optional live process validation — then emits a C++ SDK in the spirit of Unreal dumpers (Dumper-7 style), adapted for VuEngine rather than `UObject` / `FProperty`.
+It recovers MSVC RTTI classes, `VuProperty` loaders, manager globals, structural layouts, and optional live process validation — then emits a C++ SDK tailored to VuEngine (`VuEntity`, `VuProperty`, manager singletons).
 
 > [!NOTE]
-> Primary validated target: **Hydro Thunder Hurricane** (`HydroThunder.exe`, Win32, preferred image base `0x400000`).
+> Primary validated target: **Hydro Thunder Hurricane** (`HydroThunder.exe`).
 
 **Docs**
 
@@ -25,7 +25,6 @@ It recovers MSVC RTTI classes, `VuProperty` loaders, manager globals, structural
 - [Pipeline](#pipeline)
 - [Target profiles](#target-profiles)
 - [How recovery works](#how-recovery-works)
-- [Important RVAs](#important-rvas-hydrothunder)
 - [Troubleshooting](#troubleshooting)
 - [License](#license--intent)
 
@@ -133,35 +132,33 @@ auto* viewport = *reinterpret_cast<c_VuViewportManager**>(
     module_base + Globals::g_vu_viewport_manager);
 
 auto* camera = reinterpret_cast<std::uint8_t*>(viewport)
-    + Fields::VuViewportManager_Camera; // +0x28 for viewport 0
+    + Fields::VuViewportManager_Camera; // camera 0 base
 
 float eye[3]{};
 std::memcpy(eye, camera + Fields::VuCamera_EyePosition, sizeof(eye));
 ```
-
-Prefer the pointer chains in [`documentation.md`](documentation.md) and `engine_offsets.hpp` over hard-coded guesses.
-
 ---
 
 ## Project layout
 
 ```text
-Dumper/
-├── main.cxx
 ├── README.md
 ├── documentation.md
-├── impl/
-│   ├── includes.hxx
-│   └── include/hexrays/…
-└── workspace/
-    ├── utility/           # logger, common, target profile
-    └── core/
-        ├── parsing/       # PE image + dump types
-        ├── reflection/    # RTTI, properties, globals
-        ├── model/         # chains / structural seeds
-        ├── live/          # process attach + live rebind
-        ├── emission/      # SDK / summary / JSON writers
-        └── dumper.hxx     # orchestrator
+├── Dumper.vcxproj
+└── Dumper/
+    ├── main.cxx
+    ├── impl/
+    │   ├── includes.hxx
+    │   └── include/hexrays/…
+    └── workspace/
+        ├── utility/           # logger, common, target profile
+        └── core/
+            ├── parsing/       # PE image + dump types
+            ├── reflection/    # RTTI, properties, globals
+            ├── model/         # chains / structural seeds
+            ├── live/          # process attach + live rebind
+            ├── emission/      # SDK / summary / JSON writers
+            └── dumper.hxx     # orchestrator
 ```
 
 ---
@@ -189,7 +186,7 @@ flowchart LR
 
 ## Target profiles
 
-Detection lives in [`workspace/utility/target.hxx`](workspace/utility/target.hxx) and uses the image stem and/or process name:
+Detection lives in [`Dumper/workspace/utility/target.hxx`](Dumper/workspace/utility/target.hxx) and uses the image stem and/or process name:
 
 | Name contains | Profile |
 | --- | --- |
@@ -200,8 +197,8 @@ Detection lives in [`workspace/utility/target.hxx`](workspace/utility/target.hxx
 
 These run only when `is_hydro_thunder(target)` is true:
 
-- System-init singleton cluster scan (`sub_4024E0`)
-- Known manager RVAs (`g_vu_viewport_manager`, boat manager, entity repo, …)
+- System-init singleton cluster scan
+- Known manager global seeds (`g_vu_viewport_manager`, boat manager, entity repo, …)
 - `VuViewportManager` / `VuCamera` structural field seeds
 - Live camera angle capture
 - Camera pointer-chain emission with HT layout constants
@@ -222,7 +219,7 @@ Vu entities/components register named properties via loaders that write into `th
 
 ### Globals
 
-Finds data-section stores of object pointers near vftable immediates. With live attach, vftable identity can refine class names on singleton slots.
+Finds data-section stores of object pointers near vftable immediates. With live attach, vftable identity can refine class names on singleton slots. Emitted values live under `Globals::` in `engine_offsets.hpp` — re-dump after patches; do not copy RVAs into your project by hand.
 
 ### Live
 
@@ -235,22 +232,6 @@ With `--live`:
 
 > [!IMPORTANT]
 > Camera basis is **Z-up** (horizontal plane = XY). See [documentation.md](documentation.md#44-coordinate-system).
-
----
-
-## Important RVAs (HydroThunder)
-
-Preferred image base VA: `0x400000`.  
-RVAs are relative to the **live** module base.
-
-| Symbol | RVA | Class |
-| --- | --- | --- |
-| `g_vu_boat_manager` | `0x358FB8` | `VuBoatManager` |
-| `g_vu_viewport_manager` | `0x359060` | `VuViewportManager` |
-| `g_vu_entity_repository` | `0x359080` | `VuEntityRepositoryImpl` |
-| `get_property` (helper) | `0x4FBDF0` | — |
-
-Re-check `SDK/engine_offsets.hpp` after every fresh dump — live enrichment can add more fields.
 
 ---
 

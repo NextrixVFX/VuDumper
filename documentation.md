@@ -1,15 +1,12 @@
 # Vector Unit (VuEngine) — Access Documentation
 
-Practical reference for reading **camera**, **entities**, **boats**, and related systems in Vector Unit’s C++ engine (**VuEngine**), recovered from **Hydro Thunder Remastered** (`HydroThunder.exe`, 32-bit, preferred image base `0x400000`).
-
-> [!NOTE]
-> Offsets and RVAs match the hybrid dump under `HydroThunder_sdk/`. Re-dump after patches. Prefer generated constants from `SDK/engine_offsets.hpp`.
+Practical reference for reading **camera**, **entities**, **boats**, and related systems in Vector Unit’s C++ engine (**VuEngine**), recovered from **Hydro Thunder Remastered** (`HydroThunder.exe`, 32-bit).
 
 **Related**
 
 - [VuDumper README](README.md) — build & run the dumper  
 - `HydroThunder_sdk/dump_summary.txt` — latest chains + live camera angles  
-- `HydroThunder_sdk/SDK/engine_offsets.hpp` — generated constants  
+- `HydroThunder_sdk/SDK/engine_offsets.hpp` — generated globals / fields / chains  
 
 ---
 
@@ -32,7 +29,7 @@ Practical reference for reading **camera**, **entities**, **boats**, and related
 
 ## 1. Engine overview
 
-VuEngine is **not** Unreal. Core ideas:
+VuEngine core ideas:
 
 | Concept | VuEngine analogue |
 | --- | --- |
@@ -73,36 +70,37 @@ System services (`VuViewportManager`, `VuBoatManager`, `VuEntityRepositoryImpl`,
 
 ```text
 live_module_base = GetModuleHandle / tool-discovered base
-va(rva)          = live_module_base + rva
-*global          = read_ptr(va(Globals::g_…))
+*global          = read_ptr(live_module_base + Globals::g_…)
 ```
 
-| Item | Value |
+| Item | Notes |
 | --- | --- |
-| Preferred PE load address | `0x400000` |
+| Preferred PE load address | Often `0x400000` for this title in IDA — **not** guaranteed at runtime |
 | Pointer size | 32-bit (`sizeof(void*) == 4`) |
-| IDA VA formula (preferred base) | `VA = 0x400000 + RVA` |
+| Global RVAs | Only from `SDK/engine_offsets.hpp` after a dump |
 
 > [!IMPORTANT]
-> At runtime, always add the **actual** module base. Do not assume the process loaded at `0x400000`.
+> At runtime, always add the **actual** module base. Never hard-code absolute RVAs from this guide or an old dump.
 
 ---
 
 ## 3. Key globals (HydroThunder)
 
-From `Vu::SDK::Engine::Globals`:
+Symbols emitted under `Vu::SDK::Engine::Globals` (values come from your dump):
 
-| Name | RVA | Type |
-| --- | --- | --- |
-| `g_vu_boat_manager` | `0x358FB8` | `VuBoatManager*` |
-| `g_vu_project_manager` | `0x358FDC` | `VuProjectManager*` |
-| `g_vu_game_mode_manager` | `0x358FF0` | `VuGameModeManagerImpl*` |
-| `g_vu_dev_menu` | `0x359014` | `VuDevMenu*` |
-| `g_vu_viewport_manager` | `0x359060` | `VuViewportManager*` |
-| `g_vu_entity_repository` | `0x359080` | `VuEntityRepositoryImpl*` |
+| Name | Type |
+| --- | --- |
+| `g_vu_boat_manager` | `VuBoatManager*` |
+| `g_vu_project_manager` | `VuProjectManager*` |
+| `g_vu_game_mode_manager` | `VuGameModeManagerImpl*` |
+| `g_vu_dev_menu` | `VuDevMenu*` |
+| `g_vu_viewport_manager` | `VuViewportManager*` |
+| `g_vu_entity_repository` | `VuEntityRepositoryImpl*` |
 
 ```cpp
-auto* mgr = *reinterpret_cast<T**>(module_base + rva);
+using namespace Vu::SDK::Engine;
+
+auto* mgr = *reinterpret_cast<T**>(module_base + Globals::g_vu_viewport_manager);
 if (!mgr)
     return; // not constructed yet (menu / early boot)
 ```
@@ -128,13 +126,13 @@ Cameras are **not** separate heap objects from a virtual `getCamera`.
 camera_i = viewport_manager + 0x28 + i * 0x274
 ```
 
-Absolute eye for camera 0 on the manager: **`manager + 0x188`** (`0x28 + 0x160`).
+Absolute eye for camera 0 on the manager: **`manager + 0x188`** (`0x28 + 0x160`). Prefer `Fields::` names from the SDK when present.
 
 ### 4.2 Pointer trace
 
 ```mermaid
 flowchart TD
-  M[module base] --> G["g_vu_viewport_manager<br/>RVA 0x359060"]
+  M[module base] --> G["Globals::g_vu_viewport_manager"]
   G --> C["viewport_count +0x04"]
   G --> CAM["camera = mgr + 0x28 + i×0x274"]
   CAM --> EYE["eye +0x160"]
@@ -146,7 +144,7 @@ flowchart TD
 
 ```text
 module
-  → [0] g_vu_viewport_manager     RVA 0x359060
+  → [0] Globals::g_vu_viewport_manager
   → [1] viewport_count            +0x04
   → [2] camera                    +0x28 + i*0x274
   → [3] eye                       camera + 0x160
@@ -229,7 +227,7 @@ For “what is on screen now”, always read the **viewport manager** camera.
 ### 5.1 Repository singleton
 
 ```text
-g_vu_entity_repository  RVA 0x359080  →  VuEntityRepositoryImpl*
+Globals::g_vu_entity_repository  →  VuEntityRepositoryImpl*
 ```
 
 Live enrichment recovers (when present):
@@ -275,7 +273,7 @@ Prefer a `--live` dump. Common HydroThunder values:
 
 ```text
 module
-  → g_vu_entity_repository
+  → Globals::g_vu_entity_repository
   → buckets / entities
   → entity + 0x50  → VuTransformComponent*
   → transform + 0x40 → position
@@ -284,6 +282,8 @@ module
 ### 5.4 Example: iterate entities
 
 ```cpp
+using namespace Vu::SDK::Engine;
+
 auto* repo = *reinterpret_cast<std::uint8_t**>(
     module_base + Globals::g_vu_entity_repository);
 auto* buckets = *reinterpret_cast<std::uint32_t**>(repo + 0x0C);
@@ -311,7 +311,7 @@ Validate `buckets` / `next` against your latest `engine_offsets.hpp` / live snap
 ### 6.1 Manager
 
 ```text
-g_vu_boat_manager  RVA 0x358FB8  →  VuBoatManager*
+Globals::g_vu_boat_manager  →  VuBoatManager*
 ```
 
 | Field | Offset | Meaning |
@@ -323,7 +323,7 @@ g_vu_boat_manager  RVA 0x358FB8  →  VuBoatManager*
 
 ```text
 module
-  → g_vu_boat_manager
+  → Globals::g_vu_boat_manager
   → boats_data[i]          VuBoatEntity*
   → (+0x50) transform      VuTransformComponent*
   → (+0x40) position
@@ -351,11 +351,7 @@ member_offset = value_ptr - owner_ptr
 
 Kinds are inferred from loader templates / tags (`int`, `bool`, `string`, `VuVector3`, `VuRect`, assets, …).
 
-| Helper | VA (this build) |
-| --- | --- |
-| `get_property`-style | `0x4FBDF0` (confirm in your dump) |
-
-Live mode walks these lists to fix offsets that static analysis alone leaves at `+0` or unbound.
+Live mode walks these lists to fix offsets that static analysis alone leaves at `+0` or unbound. Helper function addresses belong in your dump / IDA DB — do not hard-code them from docs.
 
 ---
 
@@ -387,18 +383,20 @@ The dumper maps vftable → class for emitted `c_*` types.
 
 ## 10. System component map (subset)
 
-| Global RVA | Class | Role |
-| --- | --- | --- |
-| `0x358FB8` | `VuBoatManager` | Race boats array |
-| `0x358FDC` | `VuProjectManager` | Project / level load |
-| `0x358FF0` | `VuGameModeManagerImpl` | Game mode stack |
-| `0x359024` | `VuDrawManagerImpl` | Draw submission |
-| `0x359060` | `VuViewportManager` | Viewports + cameras |
-| `0x359074` | `VuGfxSort` | Sort / pass state |
-| `0x359080` | `VuEntityRepositoryImpl` | World entity buckets |
-| `0x359088` | `VuEntityFactory` | Entity construction |
+Resolve each via `Globals::` in `engine_offsets.hpp` after a dump:
 
-Many Metro / FMOD / gfx managers sit in the same `.data` cluster (`0x758F84+` VA range at preferred base).
+| Global symbol | Class | Role |
+| --- | --- | --- |
+| `g_vu_boat_manager` | `VuBoatManager` | Race boats array |
+| `g_vu_project_manager` | `VuProjectManager` | Project / level load |
+| `g_vu_game_mode_manager` | `VuGameModeManagerImpl` | Game mode stack |
+| `g_vu_draw_manager` / draw impl | `VuDrawManagerImpl` | Draw submission |
+| `g_vu_viewport_manager` | `VuViewportManager` | Viewports + cameras |
+| `g_vu_gfx_sort` / related | `VuGfxSort` | Sort / pass state |
+| `g_vu_entity_repository` | `VuEntityRepositoryImpl` | World entity buckets |
+| `g_vu_entity_factory` / related | `VuEntityFactory` | Entity construction |
+
+Exact symbol names may vary slightly with dump labeling — match class names in `dump_summary.txt` / `engine_offsets.hpp`.
 
 ---
 
@@ -406,7 +404,7 @@ Many Metro / FMOD / gfx managers sit in the same `.data` cluster (`0x758F84+` VA
 
 1. Run a **static** dump for RTTI + loaders + globals.  
 2. Run **`--live` in-game** (not only the main menu) to rebind transforms / boat fields and snapshot camera angles.  
-3. Consume **`engine_offsets.hpp`** and **`Chains`** comments rather than hard-coding from memory.  
+3. Consume **`engine_offsets.hpp`** and **`Chains`** — never paste absolute RVAs into client code.  
 4. Treat HydroThunder structural camera offsets as **title-specific** unless re-verified on another VuEngine binary.
 
 ---
@@ -416,7 +414,7 @@ Many Metro / FMOD / gfx managers sit in the same `.data` cluster (`0x758F84+` VA
 ```text
 Camera (viewport 0)
 ──────────────────
-*(VuViewportManager*)(base + 0x359060)
+*(VuViewportManager*)(base + Globals::g_vu_viewport_manager)
   + 0x28              → VuCamera
   + 0x28 + 0x160      → eye (Z-up world)
   + 0x28 + 0x140      → forward
@@ -426,14 +424,14 @@ Camera (viewport 0)
 
 Entities
 ────────
-*(VuEntityRepositoryImpl*)(base + 0x359080)
+*(VuEntityRepositoryImpl*)(base + Globals::g_vu_entity_repository)
   + 0x0C              → buckets
   entity + 0x50       → VuTransformComponent*
   transform + 0x40    → position
 
 Boats
 ─────
-*(VuBoatManager*)(base + 0x358FB8)
+*(VuBoatManager*)(base + Globals::g_vu_boat_manager)
   + 0x0C / +0x10      → data / count
   boat + 0x50         → transform → +0x40 position
 ```
